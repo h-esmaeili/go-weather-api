@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"go-weather-api/internal/nws"
 	"go-weather-api/internal/weather"
 	"net/http"
@@ -25,15 +26,17 @@ func main() {
 			return
 		}
 
-		forecast, temp, err := client.GetTodayForecast(lat, lon)
+		forecast, tempF, err := client.GetTodayForecast(lat, lon)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch weather"})
 			return
 		}
 
-		result := weather.Result{
-			Forecast:        forecast,
-			TemperatureType: weather.ClassifyTemperature(temp),
+		result := gin.H{
+			"forecast":      forecast,
+			"temperature":   weather.ClassifyTemperature(tempF),
+			"temperature_f": tempF,
+			"location":      fmt.Sprintf("%s, %s", lat, lon),
 		}
 
 		c.JSON(http.StatusOK, result)
