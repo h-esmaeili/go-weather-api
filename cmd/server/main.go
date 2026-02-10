@@ -2,6 +2,7 @@ package main
 
 import (
 	"go-weather-api/internal/nws"
+	"go-weather-api/internal/weather"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -24,12 +25,18 @@ func main() {
 			return
 		}
 
-		forecast, temp, _ := client.GetTodayForecast(lat, lon)
+		forecast, temp, err := client.GetTodayForecast(lat, lon)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch weather"})
+			return
+		}
 
-		c.JSON(http.StatusOK, gin.H{
-			"forecast":    forecast,
-			"temperature": temp,
-		})
+		result := weather.Result{
+			Forecast:        forecast,
+			TemperatureType: weather.ClassifyTemperature(temp),
+		}
+
+		c.JSON(http.StatusOK, result)
 	})
 
 	r.Run(":8080")
