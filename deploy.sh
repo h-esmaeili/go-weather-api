@@ -8,16 +8,26 @@ DEPLOY_DIR="/opt/go-weather-api"
 SERVICE_NAME="go-weather-api"
 BINARY_NAME="go-weather-api"
 TEMP_DIR="/tmp"
+EXTRACT_DIR="$TEMP_DIR/go-weather-api-deploy-$$"
 
 echo "Starting deployment..."
 
-# Extract the deployment package
+# Create a temporary extraction directory
+mkdir -p $EXTRACT_DIR
+
+# Extract the deployment package to the temp directory
 echo "Extracting deployment package..."
-cd $TEMP_DIR
-tar -xzf go-weather-api.tar.gz
+if ! tar -xzf $TEMP_DIR/go-weather-api.tar.gz -C $EXTRACT_DIR --no-same-owner --no-same-permissions 2>/dev/null; then
+    echo "Retrying extraction without permission flags..."
+    tar -xzf $TEMP_DIR/go-weather-api.tar.gz -C $EXTRACT_DIR || {
+        echo "Error: Failed to extract deployment package!"
+        exit 1
+    }
+fi
 
 # Create deployment directory if it doesn't exist
-mkdir -p $DEPLOY_DIR
+echo "Creating deployment directory..."
+mkdir -p $DEPLOY_DIR 2>/dev/null || sudo mkdir -p $DEPLOY_DIR
 
 # Stop the service if it's running (if using systemd)
 # Check if we can use systemctl (may require sudo)
@@ -30,12 +40,21 @@ fi
 
 # Copy files to deployment directory
 echo "Copying files to $DEPLOY_DIR..."
-cp $BINARY_NAME $DEPLOY_DIR/
-cp go.mod $DEPLOY_DIR/ 2>/dev/null || true
-cp go.sum $DEPLOY_DIR/ 2>/dev/null || true
+if [ -f "$EXTRACT_DIR/$BINARY_NAME" ]; then
+    cp $EXTRACT_DIR/$BINARY_NAME $DEPLOY_DIR/ 2>/dev/null || sudo cp $EXTRACT_DIR/$BINARY_NAME $DEPLOY_DIR/
+elif [ -f "$BINARY_NAME" ]; then
+    cp $BINARY_NAME $DEPLOY_DIR/ 2>/dev/null || sudo cp $BINARY_NAME $DEPLOY_DIR/
+else
+    echo "Error: Binary $BINARY_NAME not found!"
+    exit 1
+fi
+
+# Copy optional files
+[ -f "$EXTRACT_DIR/go.mod" ] && (cp $EXTRACT_DIR/go.mod $DEPLOY_DIR/ 2>/dev/null || sudo cp $EXTRACT_DIR/go.mod $DEPLOY_DIR/ 2>/dev/null || true)
+[ -f "$EXTRACT_DIR/go.sum" ] && (cp $EXTRACT_DIR/go.sum $DEPLOY_DIR/ 2>/dev/null || sudo cp $EXTRACT_DIR/go.sum $DEPLOY_DIR/ 2>/dev/null || true)
 
 # Make binary executable
-chmod +x $DEPLOY_DIR/$BINARY_NAME
+chmod +x $DEPLOY_DIR/$BINARY_NAME 2>/dev/null || sudo chmod +x $DEPLOY_DIR/$BINARY_NAME
 
 # Start the service (if using systemd)
 if command -v systemctl >/dev/null 2>&1; then
@@ -54,9 +73,7 @@ fi
 
 # Cleanup
 echo "Cleaning up temporary files..."
+rm -rf $EXTRACT_DIR
 rm -f $TEMP_DIR/go-weather-api.tar.gz
-rm -f $TEMP_DIR/$BINARY_NAME
-rm -f $TEMP_DIR/go.mod
-rm -f $TEMP_DIR/go.sum
 
 echo "Deployment completed successfully!"
