@@ -1,0 +1,90 @@
+name: Deploy to Ubuntu Server
+
+on:
+  push:
+    branches: [ main, develop, feat/weather-service ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.23'
+    
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+    
+    - name: Download dependencies
+      run: go mod download
+    
+    - name: Verify dependencies
+      run: go mod verify
+    
+    - name: Run tests
+      run: go test ./...
+    
+    - name: Build application
+      run: go build -o bin/go-weather-api ./cmd/server
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/feat/weather-service'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.23'
+    
+    - name: Build application
+      run: go build -o bin/go-weather-api ./cmd/server
+    
+    - name: Create deployment package
+      run: |
+        mkdir -p deploy
+        cp bin/go-weather-api deploy/
+        cp go.mod deploy/
+        cp go.sum deploy/
+        cp README.md deploy/
+        tar -czf go-weather-api.tar.gz -C deploy .
+    
+    - name: Upload deployment files
+      uses: appleboy/scp-action@v0.1.4
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USERNAME }}
+        password: ${{ secrets.SSH_PASSWORD }}
+        port: ${{ secrets.SSH_PORT }}
+        source: "go-weather-api.tar.gz,deploy.sh"
+        target: "/tmp/"
+    
+    - name: Deploy to server
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USERNAME }}
+        password: ${{ secrets.SSH_PASSWORD }}
+        port: ${{ secrets.SSH_PORT }}
+        script: |
+          # Make deploy script executable and run it
+          chmod +x /tmp/deploy.sh
+          # Try to run with sudo, fall back to direct execution if sudo requires password
+          if sudo -n true 2>/dev/null; then
+            sudo /tmp/deploy.sh
+          else
+            /tmp/deploy.sh
+          fi
