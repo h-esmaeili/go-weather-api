@@ -15,7 +15,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
-        go-version: '1.21'
+        go-version: '1.23'
     
     - name: Cache Go modules
       uses: actions/cache@v3
@@ -48,7 +48,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
-        go-version: '1.21'
+        go-version: '1.23'
     
     - name: Build application
       run: go build -o bin/go-weather-api ./cmd/server
@@ -57,10 +57,8 @@ jobs:
       run: |
         mkdir -p deploy
         cp bin/go-weather-api deploy/
-        cp -r app deploy/
         cp go.mod deploy/
         cp go.sum deploy/
-        cp Makefile deploy/
         cp README.md deploy/
         tar -czf go-weather-api.tar.gz -C deploy .
     
