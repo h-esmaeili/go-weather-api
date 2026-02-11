@@ -35,7 +35,7 @@ jobs:
       run: go test ./...
     
     - name: Build application
-      run: go build -o bin/go-weather-api ./cmd
+      run: go build -o bin/go-weather-api ./cmd/server
 
   deploy:
     needs: test
@@ -51,7 +51,7 @@ jobs:
         go-version: '1.21'
     
     - name: Build application
-      run: go build -o bin/go-weather-api ./cmd
+      run: go build -o bin/go-weather-api ./cmd/server
     
     - name: Create deployment package
       run: |
