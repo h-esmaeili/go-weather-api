@@ -2,7 +2,7 @@ name: Deploy to Ubuntu Server
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, feat/weather-service ]
   pull_request:
     branches: [ main ]
 
@@ -82,4 +82,9 @@ jobs:
         script: |
           # Make deploy script executable and run it
           chmod +x /tmp/deploy.sh
-          sudo /tmp/deploy.sh
+          # Try to run with sudo, fall back to direct execution if sudo requires password
+          if sudo -n true 2>/dev/null; then
+            sudo /tmp/deploy.sh
+          else
+            /tmp/deploy.sh
+          fi
